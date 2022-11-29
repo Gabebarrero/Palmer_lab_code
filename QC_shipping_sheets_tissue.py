@@ -75,7 +75,7 @@ data
 def runQuery(query):
     connection = psycopg2.connect(database = "PalmerLab_Datasets",
                                   user = "postgres",
-                                  password = "palmerlab-amapostgres",
+                                  password = "XXX", # change to real password
                                   host = "palmerlab-main-database-c2021-08-02.c6sgfwysomht.us-west-2.rds.amazonaws.com",
                                   port = '5432')
     cursor = connection.cursor()
@@ -289,7 +289,7 @@ checkDupCols(data)
 def insertQuery(query, data):
     connection = psycopg2.connect(database = "PalmerLab_Datasets",
                                   user = "postgres",
-                                  password = "palmerlab-amapostgres",
+                                  password = "XXXX", # change to real password
                                   host = "palmerlab-main-database-c2021-08-02.c6sgfwysomht.us-west-2.rds.amazonaws.com",
                                   port = '5432')
     cursor = connection.cursor()
