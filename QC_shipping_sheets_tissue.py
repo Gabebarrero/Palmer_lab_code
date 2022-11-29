@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[ ]:
+
+
 import pandas as pd
 import numpy as np
 import os
@@ -12,22 +14,16 @@ from sqlalchemy import create_engine
 import sqlalchemy
 import matplotlib.pyplot as plt
 import seaborn as sns
+import tqdm
+
+
 # ## Read in the file 
 
-# In[62]:
+# In[ ]:
 
 
-data = pd.read_excel('Italy #17 shipping sheet.xlsx')
-# data
-# def reformat(data, columns):
-#     for col in columns:
-#         data[col] = data[col].astype(str)
-#         data[col] = [val.replace('.0','') for val in data[col]]
-# reformat(data, ["15 digit RFID"])
-# data
+data = pd.read_excel('Box_1_Jhou_Spleens_15November22.xlsx')
 data
-
-
 
 
 # ## Data check
@@ -35,42 +31,47 @@ data
 # In[ ]:
 
 
-data
-
-
-# In[23]:
-
-
 # fix for casting error 
-data.rename(columns={'RFID':'rfid'}, inplace=True)
+def reformat(data, columns):
+    for col in columns:
+        data[col] = data[col].astype(str)
+        data[col] = [val.replace('.0','') for val in data[col]]
+reformat(data, ["15 digit RFID"])
 
+
+# In[ ]:
+
+
+# rename issue for RFID columns
+data.rename(columns={'15 digit RFID':'rfid'}, inplace=True)
+
+
+### this code checks RFID prefix using length, you need to change X to correct length
 for value in data['rfid']:
     print(len(str(value)))
-    if len(str(value)) < 15:
+    if len(str(value)) < X:
         print('val',value)
         row_idx= data[data['rfid'] == value].index.tolist()
         result=data.iloc[row_idx]
         for i in row_idx:
-            data.loc[i, 'rfid']= f'93300{value}' ## change this 
+            data.loc[i, 'rfid']= f'XX{value}' ## change this XX to correct prefix
     else:
-        value = 15
+        value = X
         pass
 
-for i in data['rfid']:
+for i in data['rfid']: # prints any values under a specific number (checks if rfid code above works)
     if int(i) < 9:
         print(i)
         
 data
 
 
-### Read in Tissue table
+# ## Read in Tissue table
 
-# In[25]:
+# In[ ]:
 
 
-projects = ['p50_david_dietz_2020','p50_hao_chen_2020','p50_hao_chen_2020_rnaseq','p50_paul_meyer_2020',
-            'u01_olivier_george_cocaine', 'u01_olivier_george_oxycodone', 'u01_olivier_george_scrub',
-            'u01_peter_kalivas_italy', 'u01_peter_kalivas_us', 'u01_suzanne_mitchell', 'u01_tom_jhou' ]
+
 def runQuery(query):
     connection = psycopg2.connect(database = "PalmerLab_Datasets",
                                   user = "postgres",
@@ -99,139 +100,48 @@ def runQuery(query):
             return
 #change project here
 current_project = 'sample_tracking.tissue'
-wfu_master = runQuery("SELECT * FROM " + current_project)
-# extraction = runQuery("SELECT * FROM sample_tracking.tissue")
-# extraction
-# wfu_master['project_name'].value_counts()
-wfu_master
+tissue_df = runQuery("SELECT * FROM " + current_project)
+tissue_df
 
 
 # # Run the following lines of code 
 
-# In[32]:
-
-
-def fixColumns(columns):
-    for i in range(len(columns)):
-        columns[i] = columns[i].lower().replace(" ", "")
-        if "sir" in columns[i] or "father" in columns[i]:
-            columns[i] = "sires"
-        elif "dam" in columns[i] or "mother" in columns[i]:
-            columns[i] = "dames"
-        elif "animal" in columns[i] and "id" in columns[i]:
-            columns[i] = "labanimalid"
-        elif "access" in columns[i] and "id" in columns[i]:
-            columns[i] = "accessid"
-        elif "sex" in columns[i]:
-            columns[i] = "sex"
-        elif "rfid" in columns[i] or "ponder" in columns[i]:
-            columns[i] = "rfid"
-        elif ("d" in columns[i] and "o" in columns[i] and "b" in columns[i]) or "birth" in columns[i]:
-            columns[i] = "dob"
-        elif ("d" in columns[i] and "o" in columns[i] and "w" in columns[i]) or ("wean" in columns[i] and "date" in columns[i]):
-            columns[i] = "dow"
-        elif "ship" in columns[i] and "date" in columns[i]:
-            columns[i] = "shipmentdate"
-        elif "litter" in columns[i] and ("#" in columns[i] or "num" in columns[i]):
-            columns[i] = "litternumber"
-        elif "ship" in columns[i] and "box" in columns[i]:
-            columns[i] = "shipmentbox"
-        elif "comment" in columns[i] or "note" in columns[i]:
-            columns[i] = "comments"
-    return columns
-
-for i in data.columns:
-    print(type(i))
-    fixColumns(i)
-# fixColumns(data['15 digit RFID'])
-
-
-
-
-
-# In[33]:
-
-
-def checkDupCols(data):
-    for col in data.columns:
-        if ".1" in col:
-            data[col] = data[col].astype(str)
-            data[col.replace(".1", "")] = data[col.replace(".1", "")].astype(str)
-            data[col] = [val.replace(".0", "") for val in data[col]]
-            data[col.replace(".1", "")] = [val.replace(".0", "") for val in data[col].replace(".1", "")]
-            if list(data[col] == data[col.replace(".1", "")]).count(True) != len(data[col]):
-                print("Transponder ID Mismatch found")
-                print(data[col])
-                print(data[col.replace(".1", "")])
-            del data[col]
-    return data
-
-checkDupCols(data)
-
-
-# In[34]:
+# In[ ]:
 
 
 #Specific Errors
 
-def date_error(data):
-    #Meyer2020 Shipping Sheet #7
-    a = (data['dob'] == '4/21/20221')
-    data.loc[a,'dob'] = '4/21/2021'
-    return data
-
-def comment_error(data):
-    #Meyer2020 Shipping Sheet #7
-    #data["comments"] = "NA"
-    if 'unnamed:18' in data.columns:
-        data.loc[data['unnamed:18'] == 'DOUBLE PULLS','unnamed:18'] = np.nan
-        data.loc[(data['rfid'] == 'AA1DCD6794'),'comments'] = "DOUBLE PULLS"
-        data = data.drop(columns = ['unnamed:18'])
+def comment_error(data): # if comment/note has incorrect name change the X to relevent name
+    if 'X' in data.columns:
+        data.loc[data['X'] == 'DOUBLE PULLS','X'] = np.nan
+        # specific changes for rfid change XX
+        data.loc[(data['rfid'] == 'XX'),'comments'] = "DOUBLE PULLS" 
+        data = data.drop(columns = ['X'])
     return data
     
-def column_error(data):
-    #Meyer2020 Shipping sheet #7
-    if '124rats' in data.columns:
-        data = data.drop(columns=['124rats'])
+def column_error(data): # drop specific columns change XY
+    if 'XY' in data.columns:
+        data = data.drop(columns=['XY'])
     return data
 
-def error_rows(data):
-    #Meyer2020 Shipping sheet #7
-    #Meyer2020 Shipping sheet #8
-    if 'unnamed:5' in data.columns:
-        print("Difference between unnamed:5 and rfid")
-        display(data.loc[~(data['unnamed:5'] == data['rfid'])])
-        print("unnamed:5 value counts")
-        display(data['unnamed:5'].value_counts().to_string())
-        print("Dropped unnamed:5")
-        data = data.drop(columns = ['unnamed:5'])
+def error_rows(data): #find if there are specific row errors, change Y
+    if 'Y' in data.columns:
+        print("Difference between Y and rfid")
+        display(data.loc[~(data['Y'] == data['rfid'])])
+        print("Y value counts")
+        display(data['Y'].value_counts().to_string())
+        print("Dropped Y")
+        data = data.drop(columns = ['Y'])
     return data
         
 def error_rfids(data):
     data['rfid'] = data['rfid'].str.upper()
 
 
-# In[36]:
-
-
-#change transponder ID into rfid
-def rfid_column():
-    if "Transponder ID" in data.columns:
-        i = list(data.columns).index("Transponder ID")
-        for index, row in data.iterrows():
-            data.iloc[index, i] = data.iloc[index, i].upper()
-            if data.iloc[index, i][:2] != "AA":
-                data.iloc[index, i] = "AA" + data.iloc[index, i]
-        checkDupCols(data)
-        data.columns = fixColumns(list(data.columns))
-rfid_column()
-
-
-# In[37]:
+# In[ ]:
 
 
 # Check if data columns look correct
-#print("Data columns:", list(data.columns))
 #remove NA columns
 def drop_na(data):
     list1 = data.columns
@@ -245,40 +155,31 @@ def drop_na(data):
     return data
 
 
-# In[38]:
+# In[ ]:
 
 
-def rfid_in_wfu(data):
+# Check if rfid from tissue sheet is in tissue DF
+def rfid_in_tissue(data):
     data["rfid"] = data["rfid"].astype(str)
-    wfu_master_rfids = list(wfu_master["rfid"])
+    tissue_df_rfids = list(tissue_df["rfid"])
     data_rfids = list(data["rfid"])
-    duplicate_rfids = list(set(wfu_master_rfids).intersection(set(data_rfids)))
-    print(len(duplicate_rfids), "rfids already in WFU_master, out of", len(data_rfids))
+    duplicate_rfids = list(set(tissue_df_rfids).intersection(set(data_rfids)))
+    print(len(duplicate_rfids), "rfids already in tissue_df, out of", len(data_rfids))
     print(duplicate_rfids)
-    fix = list(set(data_rfids) - set(wfu_master_rfids))
+    fix = list(set(data_rfids) - set(tissue_df_rfids))
     
 
-rfid_in_wfu(data)
+rfid_in_tissue(data)
 
 
-# In[44]:
+# In[ ]:
 
-
-def qc_rfid(rfid, prefix, length):
-    # Checking if prefix is present
-    if rfid[:len(prefix)] != prefix:
-        return False
-    # Checking is rfid is correct length
-    elif len(rfid) != length:
-        return False
-    return True
 
 def check_rfid():
-#     data = tissue.copy()
     #Check to make sure rfid for the project contains the correct naming convention
-    project_metadata = pd.read_csv("project_metadata - project_metadata (1).csv", dtype = str)
+    project_metadata = pd.read_csv("project_metadata - project_metadata (1).csv", dtype = str) # this may change depending on how you are reading in the project metadata
     i_convention = list(project_metadata.columns).index("rfid_convention")
-    subset = project_metadata[project_metadata["project_name"] == 'u01_olivier_george_oxycodone']
+    subset = project_metadata[project_metadata["project_name"] == 'XXXX'] # change this to relevant project name
     subset.index = range(subset.shape[0])
     convention_list = subset.iloc[0, i_convention]
     convention_list = convention_list.split(";")
@@ -292,46 +193,46 @@ def check_rfid():
             passed = passed + qc_rfid(rfid, prefix, length)
         if not passed:
             print('RFID errors:')
-            print(rfid, 'u01_olivier_george_oxycodone')
+            print(rfid, 'XXX')
             display(data.loc[data['rfid']== rfid])
             
 check_rfid()      
-# data
 
 
 # ## Check if looks good
 
-# In[82]:
-
+# In[ ]:
 
 
 #RFIDs already in wfu
-rfid_in_wfu(data)
+rfid_in_tissue(data)
 #correct specific errors involving comments
 data = comment_error(data)
 #correct specific errors involving columns
 data = column_error(data)
-#Drop columns with all NA values
+#Drop columns with all NA values 
 data = drop_na(data)
 #column information
-column_qc()
 #rows with notable errors
 data = error_rows(data)
 # error fixing for rfids
 error_rfids(data)
 #find inccorrect rfids
 check_rfid()
-#sibling count
-# data = siblings(data)
-#plot relevant graphs
-graph_columns()
+
+
+# In[ ]:
+
+
+data
 
 
 # ## Reformatting DF change XXX
 
-# In[61]:
+# In[ ]:
 
 
+# all this information is either from KHAI or tissue sheet
 data = data
 project_name='XXX'
 shippingbox='XXX'
@@ -352,9 +253,37 @@ data=data[['rfid','tissue_type', 'storage_box_of_tissue',
 data
 
 
+# In[ ]:
+
+
+# Check list
+# Lengths match, project name is correct, tissue is correct, freezer is correct
+# no RFID issues, if there are duplicates they are tail tissues, if baculum destination is Dean lab
+
+
+# In[ ]:
+
+
+def checkDupCols(data):
+    for col in data.columns:
+        if ".1" in col:
+            data[col] = data[col].astype(str)
+            data[col.replace(".1", "")] = data[col.replace(".1", "")].astype(str)
+            data[col] = [val.replace(".0", "") for val in data[col]]
+            data[col.replace(".1", "")] = [val.replace(".0", "") for val in data[col].replace(".1", "")]
+            if list(data[col] == data[col.replace(".1", "")]).count(True) != len(data[col]):
+                print("Transponder ID Mismatch found")
+                print(data[col])
+                print(data[col.replace(".1", "")])
+            del data[col]
+    return data
+
+checkDupCols(data)
+
+
 # ## Insert DF into tissue table
 
-# In[122]:
+# In[ ]:
 
 
 def insertQuery(query, data):
@@ -379,18 +308,14 @@ def insertQuery(query, data):
         return
 
 
-
-# test=test.drop(columns=['cohort'])
-
-
-# 9:21
 project = "sample_tracking"
 query = "INSERT INTO " + project + ".tissue"
-data = data ## Change if needed
+# check if Project + query is correct dataframe
+data = data2 ## Change if needed
 data.index = range(data.shape[0])
 print(list(data.columns))
-for index, row in data.iterrows():
+for index, row in tqdm(data.iterrows()): 
     print(index)
     print(list(row))
-    insertQuery(query, data.iloc[index:index+1, :]) #OJO print before you run so you dont add a bunch of random stuff
+    insertQuery(query, data.iloc[index:index+1, :]) #CAREFUL print before you run so you dont add a bunch of random stuff
 
