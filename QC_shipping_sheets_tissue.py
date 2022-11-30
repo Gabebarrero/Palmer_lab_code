@@ -71,7 +71,7 @@ data
 # In[ ]:
 
 
-
+### make sure your IP is registered in postgres to access the data base
 def runQuery(query):
     connection = psycopg2.connect(database = "PalmerLab_Datasets",
                                   user = "postgres",
